@@ -72,6 +72,9 @@ public class OrganizationEntity {
     @Column(name = "GROUP_ID")
     private String groupId;
 
+    @Column(name = "REQUIRE_SSO")
+    private boolean requireSso;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy="organization")
     protected Set<OrganizationDomainEntity> domains = new HashSet<>();
 
@@ -136,6 +139,14 @@ public class OrganizationEntity {
 
     public void setGroupId(String groupId) {
         this.groupId = groupId;
+    }
+
+    public boolean getRequireSso(){
+        return requireSso;
+    }
+
+    public void setRequireSso(boolean requireSso){
+        this.requireSso = requireSso;
     }
 
     public String getName() {

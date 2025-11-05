@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { AttributeForm } from "../components/key-value-form/AttributeForm";
 import { keyValueToArray } from "../components/key-value-form/key-value-convert";
 import { MultiLineInput } from "../components/multi-line-input/MultiLineInput";
+import { DefaultSwitchControl } from "../components/SwitchControl";
 
 export type OrganizationFormType = AttributeForm &
   Omit<OrganizationRepresentation, "domains" | "attributes"> & {
@@ -79,6 +80,11 @@ export const OrganizationForm = ({
           <FormErrorText message={errors["domains"].message.toString()} />
         )}
       </FormGroup>
+      <DefaultSwitchControl
+        name="requireSso"
+        label={t("requireSso")}
+        labelIcon={t("organizationRequireSsoHelp")}
+      />
       <TextControl
         label={t("redirectUrl")}
         name="redirectUrl"

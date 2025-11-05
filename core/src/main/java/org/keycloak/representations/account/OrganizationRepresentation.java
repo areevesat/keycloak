@@ -25,6 +25,7 @@ public class OrganizationRepresentation {
     private String name;
     private String alias;
     private boolean enabled = true;
+    private boolean requireSso;
     private String description;
     private Set<String> domains;
 
@@ -42,6 +43,14 @@ public class OrganizationRepresentation {
 
     public String getName() {
         return name;
+    }
+
+    public boolean getRequireSso(){
+        return requireSso;
+    }
+
+    public void setRequireSso(boolean requireSso){
+        this.requireSso = requireSso;
     }
 
     public String getAlias() {

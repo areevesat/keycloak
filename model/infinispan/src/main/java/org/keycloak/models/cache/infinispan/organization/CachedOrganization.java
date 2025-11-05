@@ -38,6 +38,7 @@ public class CachedOrganization extends AbstractRevisioned implements InRealm {
     private final String alias;
     private final String description;
     private final String redirectUrl;
+    private final boolean requireSso;
     private final boolean enabled;
     private final LazyLoader<OrganizationModel, MultivaluedHashMap<String, String>> attributes;
     private final Set<OrganizationDomainModel> domains;
@@ -54,6 +55,7 @@ public class CachedOrganization extends AbstractRevisioned implements InRealm {
         this.attributes = new DefaultLazyLoader<>(orgModel -> new MultivaluedHashMap<>(orgModel.getAttributes()), MultivaluedHashMap::new);
         this.domains = organization.getDomains().collect(Collectors.toSet());
         this.idps = organization.getIdentityProviders().collect(Collectors.toSet());
+        this.requireSso = organization.getRequireSso();
     }
 
     @Override
@@ -75,6 +77,10 @@ public class CachedOrganization extends AbstractRevisioned implements InRealm {
 
     public String getRedirectUrl() {
         return redirectUrl;
+    }
+
+    public boolean getRequireSso(){
+        return requireSso;
     }
 
     public boolean isEnabled() {

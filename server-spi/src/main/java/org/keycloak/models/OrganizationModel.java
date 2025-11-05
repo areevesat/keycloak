@@ -119,6 +119,10 @@ public interface OrganizationModel {
 
     void setRedirectUrl(String redirectUrl);
 
+    boolean getRequireSso();
+
+    void setRequireSso(boolean requireSso);
+
     Map<String, List<String>> getAttributes();
 
     void setAttributes(Map<String, List<String>> attributes);

@@ -137,6 +137,16 @@ public final class OrganizationAdapter implements OrganizationModel, JpaModel<Or
     }
 
     @Override
+    public boolean getRequireSso(){
+        return entity.getRequireSso();
+    }
+
+    @Override
+    public void setRequireSso(boolean requireSso){
+        entity.setRequireSso(requireSso);
+    }
+
+    @Override
     public void setAttributes(Map<String, List<String>> attributes) {
         if (attributes == null) {
             return;

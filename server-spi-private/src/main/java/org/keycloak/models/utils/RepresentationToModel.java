@@ -1733,6 +1733,7 @@ public class RepresentationToModel {
         model.setAlias(rep.getAlias());
         model.setEnabled(rep.isEnabled());
         model.setRedirectUrl(rep.getRedirectUrl());
+        model.setRequireSso(rep.getRequireSso());
         model.setDescription(rep.getDescription());
         model.setAttributes(rep.getAttributes());
         model.setDomains(ofNullable(rep.getDomains()).orElse(Set.of()).stream()

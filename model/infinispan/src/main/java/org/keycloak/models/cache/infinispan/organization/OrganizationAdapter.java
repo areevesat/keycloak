@@ -138,6 +138,18 @@ public class OrganizationAdapter implements OrganizationModel {
     }
 
     @Override
+    public boolean getRequireSso(){
+        if (isUpdated()) return updated.getRequireSso();
+        return cached.getRequireSso();
+    }
+
+    @Override
+    public void setRequireSso(boolean requireSso){
+        getDelegateForUpdate();
+        updated.setRequireSso(requireSso);
+    }
+
+    @Override
     public Map<String, List<String>> getAttributes() {
         if (isUpdated()) return updated.getAttributes();
         return cached.getAttributes(session, modelSupplier);

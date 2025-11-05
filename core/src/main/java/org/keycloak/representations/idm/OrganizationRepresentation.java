@@ -33,6 +33,7 @@ public class OrganizationRepresentation {
     private boolean enabled = true;
     private String description;
     private String redirectUrl;
+    private boolean requireSso;
     private Map<String, List<String>> attributes;
     private Set<OrganizationDomainRepresentation> domains;
     private List<MemberRepresentation> members;
@@ -60,6 +61,14 @@ public class OrganizationRepresentation {
 
     public void setAlias(String alias) {
         this.alias = alias;
+    }
+
+    public boolean getRequireSso(){
+        return requireSso;
+    }
+
+    public void setRequireSso(boolean requireSso){
+        this.requireSso = requireSso;
     }
 
     public boolean isEnabled() {

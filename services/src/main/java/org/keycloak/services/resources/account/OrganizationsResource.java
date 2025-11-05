@@ -67,6 +67,7 @@ public class OrganizationsResource {
         rep.setName(model.getName());
         rep.setAlias(model.getAlias());
         rep.setDescription(model.getDescription());
+        rep.setRequireSso(model.getRequireSso());
         rep.setEnabled(model.isEnabled());
         rep.setDomains(model.getDomains().map(OrganizationDomainModel::getName).collect(Collectors.toSet()));
 
