@@ -2,6 +2,8 @@ package org.keycloak.services.resources.account;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.ws.rs.ForbiddenException;
+
+import org.apache.commons.collections4.CollectionUtils;
 import org.jboss.logging.Logger;
 import org.jboss.resteasy.reactive.NoCache;
 import org.keycloak.authentication.Authenticator;
@@ -21,11 +23,13 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.OrganizationModel;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.models.utils.ModelToRepresentation;
+import org.keycloak.organization.OrganizationProvider;
 import org.keycloak.protocol.oidc.utils.AcrUtils;
 import org.keycloak.representations.account.CredentialMetadataRepresentation;
 import org.keycloak.representations.idm.CredentialRepresentation;
@@ -179,6 +183,19 @@ public class AccountCredentialResource {
         boolean includeUserCredentials = userCredentials == null || userCredentials;
 
         Set<String> enabledCredentialTypes = getEnabledCredentialTypes();
+
+        List<OrganizationModel> organizations = session.getProvider(OrganizationProvider.class)
+            .getByMember(user).toList();
+        
+        boolean requireSso = false;
+        for(OrganizationModel organization : organizations){
+            requireSso = requireSso || organization.getRequireSso();
+        }
+
+        if (requireSso){
+            // TODO figure out how to remove this properly.
+            enabledCredentialTypes.remove("password");
+        }
 
         SubjectCredentialManager credentialManager = user.credentialManager();
         Stream<CredentialModel> modelsStream = includeUserCredentials ? credentialManager.getCredentials() : Stream.empty();

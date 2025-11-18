@@ -473,4 +473,8 @@ public interface ServicesLogger extends BasicLogger {
     @Message(id=111, value="Created initial admin user with username %s")
     void createdInitialAdminUser(String userName);
 
+    @LogMessage(level = ERROR)
+    @Message(id=112, value="Password update attempted for user whose organization requires Single Sign On")
+    void singleSignOnRequired();
+
 }

@@ -17,6 +17,7 @@
 package org.keycloak.services.resources;
 
 import jakarta.ws.rs.HEAD;
+
 import org.jboss.logging.Logger;
 import org.keycloak.common.Profile;
 import org.keycloak.common.Profile.Feature;
@@ -63,6 +64,7 @@ import org.keycloak.models.ClientScopeModel;
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.OrganizationModel;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserConsentModel;
 import org.keycloak.models.UserModel;
@@ -112,6 +114,7 @@ import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriBuilderException;
 import jakarta.ws.rs.core.UriInfo;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 import static org.keycloak.authentication.actiontoken.DefaultActionToken.ACTION_TOKEN_BASIC_CHECKS;
@@ -1150,6 +1153,21 @@ public class LoginActionsService {
         AuthenticationSessionModel authSession = checks.getAuthenticationSession();
 
         processLocaleParam(authSession);
+
+        if (action.equals(UserModel.RequiredAction.UPDATE_PASSWORD.name())){
+            UserModel user = authSession.getAuthenticatedUser();
+            List<OrganizationModel> organizations = session.getProvider(OrganizationProvider.class)
+                .getByMember(user).toList();
+            boolean requireSso = false;
+            for(OrganizationModel organization : organizations){
+                requireSso = requireSso || organization.getRequireSso();
+            }
+            if (requireSso){
+                ServicesLogger.LOGGER.singleSignOnRequired();
+                event.error(Errors.SINGLE_SIGN_ON_REQUIRED);
+                throw new WebApplicationException(ErrorPage.error(session, authSession, Response.Status.BAD_REQUEST, Messages.SINGLE_SIGN_ON_REQUIRED));
+            }
+        }
 
         if (!checks.isActionRequest()) {
             initLoginEvent(authSession);

@@ -71,6 +71,7 @@ public interface Errors {
     String INVALID_INPUT = "invalid_input";
     String COOKIE_NOT_FOUND = "cookie_not_found";
     String ALREADY_LOGGED_IN = "already_logged_in";
+    String SINGLE_SIGN_ON_REQUIRED = "single sign on required";
 
     String TOKEN_INTROSPECTION_FAILED = "token_introspection_failed";
 

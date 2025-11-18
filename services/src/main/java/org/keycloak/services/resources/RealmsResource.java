@@ -161,6 +161,7 @@ public class RealmsResource {
 
     @Path("{realm}/login-actions")
     public LoginActionsService getLoginActionsService(final @PathParam("realm") String name) {
+        System.out.println("getLoginActionsService");
         resolveRealmAndUpdateSession(name);
         EventBuilder event = new EventBuilder(session.getContext().getRealm(), session, session.getContext().getConnection());
         return new LoginActionsService(session, event);

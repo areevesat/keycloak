@@ -201,6 +201,8 @@ public class Messages {
 
     public static final String INVALID_CODE = "invalidCodeMessage";
 
+    public static final String SINGLE_SIGN_ON_REQUIRED = "Your organization requires Single Sign On.";
+
     public static final String STALE_VERIFY_EMAIL_LINK = "staleEmailVerificationLink";
 
     public static final String EMAIL_VERIFICATION_CANCELLED = "emailVerificationCancelled";
