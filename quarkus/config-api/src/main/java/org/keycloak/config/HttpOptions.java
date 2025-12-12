@@ -18,7 +18,7 @@ public class HttpOptions {
 
     public static final Option<String> HTTP_HOST = new OptionBuilder<>("http-host", String.class)
             .category(OptionCategory.HTTP)
-            .description("The HTTP Host.")
+            .description("The HTTP Host. By default, Keycloak binds to all network addresses (0.0.0.0), which means the server may be accessible from other machines on your network. For local development, you can restrict access to localhost only by setting this to 127.0.0.1.")
             .defaultValue("0.0.0.0")
             .build();
 
@@ -116,13 +116,6 @@ public class HttpOptions {
             .description("The type of the trust store file. " +
                     "If not given, the type is automatically detected based on the file extension. " +
                     "If '" + SecurityOptions.FIPS_MODE.getKey() + "' is set to '" + FipsMode.STRICT + "' and no value is set, it defaults to 'BCFKS'.")
-            .build();
-
-    public static final Option<Boolean> HTTP_SERVER_ENABLED = new OptionBuilder<>("http-server-enabled", Boolean.class)
-            .category(OptionCategory.HTTP)
-            .hidden()
-            .description("Enables or disables the HTTP/s and Socket serving.")
-            .defaultValue(Boolean.TRUE)
             .build();
 
     public static final Option<Integer> HTTP_MAX_QUEUED_REQUESTS = new OptionBuilder<>("http-max-queued-requests", Integer.class)

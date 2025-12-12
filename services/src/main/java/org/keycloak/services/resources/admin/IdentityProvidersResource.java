@@ -17,37 +17,13 @@
 
 package org.keycloak.services.resources.admin;
 
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
-import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
-import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.resteasy.reactive.NoCache;
-import org.keycloak.models.IdentityProviderCapability;
-import org.keycloak.models.IdentityProviderQuery;
-import org.keycloak.models.IdentityProviderType;
-import org.keycloak.broker.provider.IdentityProvider;
-import org.keycloak.broker.provider.IdentityProviderFactory;
-import org.keycloak.broker.social.SocialIdentityProvider;
-import org.keycloak.common.util.StreamUtil;
-import org.keycloak.connections.httpclient.HttpClientProvider;
-import org.keycloak.events.admin.OperationType;
-import org.keycloak.events.admin.ResourceType;
-import org.keycloak.http.FormPartValue;
-import org.keycloak.models.IdentityProviderModel;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.ModelDuplicateException;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.utils.ModelToRepresentation;
-import org.keycloak.models.utils.RepresentationToModel;
-import org.keycloak.models.utils.StripSecretsUtils;
-import org.keycloak.provider.ProviderFactory;
-import org.keycloak.representations.idm.IdentityProviderRepresentation;
-import org.keycloak.services.ErrorResponse;
-import org.keycloak.services.resources.KeycloakOpenAPI;
-import org.keycloak.services.resources.admin.fgap.AdminPermissionEvaluator;
-import org.keycloak.utils.ReservedCharValidator;
+import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
@@ -60,14 +36,45 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+
+import org.keycloak.broker.provider.IdentityProvider;
+import org.keycloak.broker.provider.IdentityProviderFactory;
+import org.keycloak.broker.social.SocialIdentityProvider;
+import org.keycloak.common.util.PemUtils;
+import org.keycloak.common.util.StreamUtil;
+import org.keycloak.connections.httpclient.HttpClientProvider;
+import org.keycloak.events.admin.OperationType;
+import org.keycloak.events.admin.ResourceType;
+import org.keycloak.http.FormPartValue;
+import org.keycloak.models.IdentityProviderCapability;
+import org.keycloak.models.IdentityProviderModel;
+import org.keycloak.models.IdentityProviderQuery;
+import org.keycloak.models.IdentityProviderType;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.ModelDuplicateException;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.models.utils.ModelToRepresentation;
+import org.keycloak.models.utils.RepresentationToModel;
+import org.keycloak.models.utils.StripSecretsUtils;
+import org.keycloak.provider.ProviderFactory;
+import org.keycloak.representations.idm.CertificateRepresentation;
+import org.keycloak.representations.idm.IdentityProviderRepresentation;
+import org.keycloak.services.ErrorResponse;
+import org.keycloak.services.ErrorResponseException;
+import org.keycloak.services.resources.KeycloakOpenAPI;
+import org.keycloak.services.resources.admin.fgap.AdminPermissionEvaluator;
+import org.keycloak.services.util.CertificateInfoHelper;
+import org.keycloak.utils.ReservedCharValidator;
 import org.keycloak.utils.StringUtil;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Stream;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.resteasy.reactive.NoCache;
 
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 
@@ -130,6 +137,33 @@ public class IdentityProvidersResource {
         String config = StreamUtil.readString(formDataMap.getFirst("file").asInputStream());
         IdentityProviderFactory<?> providerFactory = getProviderFactoryById(providerId);
         return providerFactory.parseConfig(session, config);
+    }
+
+    @POST
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Tag(name = KeycloakOpenAPI.Admin.Tags.CLIENT_ATTRIBUTE_CERTIFICATE)
+    @Operation( summary = "Uploads a certificate, prepares the jwks or public key associated, and returns the certificate representation.")
+    @Path("upload-certificate")
+    public CertificateRepresentation uploadCertificate() throws IOException {
+        auth.realm().requireManageIdentityProviders();
+        try {
+            CertificateRepresentation info = CertificateInfoHelper.getCertificateFromRequest(session);
+            if (info.getJwks() != null || info.getPublicKey() != null) {
+                // uploaded a jwks or a publick key
+                return info;
+            } else if (info.getCertificate() != null) {
+                // get the key from the certificate file
+                X509Certificate certificate = KeycloakModelUtils.getCertificate(info.getCertificate());
+                String pubKeyPem = PemUtils.encodeKey(certificate.getPublicKey());
+                info.setPublicKey(pubKeyPem);
+                return info;
+            } else {
+                throw new ErrorResponseException("certificate-not-found", "Invalid certificate/key in file", Response.Status.BAD_REQUEST);
+            }
+        } catch (IllegalStateException ise) {
+            throw new ErrorResponseException("certificate-not-found", "Certificate or key error loding from uploaded file", Response.Status.BAD_REQUEST);
+        }
     }
 
     /**

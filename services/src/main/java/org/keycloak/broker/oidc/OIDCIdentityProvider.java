@@ -16,7 +16,15 @@
  */
 package org.keycloak.broker.oidc;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.QueryParam;
@@ -26,18 +34,19 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
-import org.jboss.logging.Logger;
+
 import org.keycloak.OAuth2Constants;
 import org.keycloak.OAuthErrorException;
 import org.keycloak.authentication.ClientAuthenticationFlowContext;
 import org.keycloak.authentication.authenticators.client.FederatedJWTClientValidator;
+import org.keycloak.broker.jwtauthorizationgrant.JWTAuthorizationGrantIdentityProvider;
 import org.keycloak.broker.oidc.mappers.AbstractJsonUserAttributeMapper;
 import org.keycloak.broker.provider.AuthenticationRequest;
-import org.keycloak.broker.provider.JWTAuthorizationGrantProvider;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.broker.provider.ClientAssertionIdentityProvider;
 import org.keycloak.broker.provider.ExchangeExternalToken;
 import org.keycloak.broker.provider.IdentityBrokerException;
+import org.keycloak.broker.provider.JWTAuthorizationGrantProvider;
 import org.keycloak.common.Profile;
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.common.util.SecretGenerator;
@@ -67,9 +76,9 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
+import org.keycloak.protocol.oidc.JWTAuthorizationGrantValidationContext;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.protocol.oidc.TokenExchangeContext;
-import org.keycloak.protocol.oidc.JWTAuthorizationGrantValidationContext;
 import org.keycloak.representations.AccessTokenResponse;
 import org.keycloak.representations.IDToken;
 import org.keycloak.representations.JsonWebToken;
@@ -85,19 +94,13 @@ import org.keycloak.util.JsonSerialization;
 import org.keycloak.util.TokenUtil;
 import org.keycloak.vault.VaultStringSecret;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.jboss.logging.Logger;
 
 /**
  * @author Pedro Igor
  */
-public class OIDCIdentityProvider extends AbstractOAuth2IdentityProvider<OIDCIdentityProviderConfig> implements ExchangeExternalToken, ClientAssertionIdentityProvider<OIDCIdentityProviderConfig>, JWTAuthorizationGrantProvider {
+public class OIDCIdentityProvider extends AbstractOAuth2IdentityProvider<OIDCIdentityProviderConfig> implements ExchangeExternalToken, ClientAssertionIdentityProvider<OIDCIdentityProviderConfig>, JWTAuthorizationGrantProvider<OIDCIdentityProviderConfig> {
     protected static final Logger logger = Logger.getLogger(OIDCIdentityProvider.class);
 
     public static final String SCOPE_OPENID = "openid";
@@ -627,7 +630,15 @@ public class OIDCIdentityProvider extends AbstractOAuth2IdentityProvider<OIDCIde
 
     protected boolean verify(JWSInput jws) {
         if (!getConfig().isValidateSignature()) return true;
+        return verifySignature(jws);
+    }
 
+    /**
+     * Verify signature on given JWS
+     *
+     * @return true if signature was successfully verified with the keys available to identity provider
+     */
+    protected boolean verifySignature(JWSInput jws) {
         try {
             KeyWrapper key = getIdentityProviderKeyWrapper(jws);
             if (key == null) {
@@ -1051,7 +1062,7 @@ public class OIDCIdentityProvider extends AbstractOAuth2IdentityProvider<OIDCIde
     public boolean verifyClientAssertion(ClientAuthenticationFlowContext context) throws Exception {
         OIDCIdentityProviderConfig config = getConfig();
 
-        FederatedJWTClientValidator validator = new FederatedJWTClientValidator(context, v -> verify(v.getJws()),
+        FederatedJWTClientValidator validator = new FederatedJWTClientValidator(context, v -> verifySignature(v.getJws()),
                 config.getIssuer(), config.getAllowedClockSkew(), config.isSupportsClientAssertionReuse());
 
         if (!Profile.isFeatureEnabled(Profile.Feature.CLIENT_AUTH_FEDERATED)) {
@@ -1062,21 +1073,16 @@ public class OIDCIdentityProvider extends AbstractOAuth2IdentityProvider<OIDCIde
             throw new RuntimeException("Issuer does not support client assertions");
         }
 
-        if (!config.isValidateSignature()) {
-            throw new RuntimeException("Signature validation not enabled for issuer");
-        }
-
         return validator.validate();
     }
 
-    @Override
     public BrokeredIdentityContext validateAuthorizationGrantAssertion(JWTAuthorizationGrantValidationContext context) throws IdentityBrokerException {
-        if (!getConfig().getJwtAuthorizationGrantEnabled()) {
+        if (!getConfig().isJWTAuthorizationGrantEnabled()) {
             throw new IdentityBrokerException("JWT Authorization Granted is not enabled for the identity provider");
         }
 
         // verify signature
-        if (!verify(context.getJws())) {
+        if (!verifySignature(context.getJws())) {
             throw new IdentityBrokerException("Invalid signature");
         }
 
@@ -1084,7 +1090,6 @@ public class OIDCIdentityProvider extends AbstractOAuth2IdentityProvider<OIDCIde
         user.setUsername(context.getJWT().getSubject());
         user.setIdp(this);
         return user;
-
     }
 
     @Override
@@ -1094,6 +1099,21 @@ public class OIDCIdentityProvider extends AbstractOAuth2IdentityProvider<OIDCIde
 
     @Override
     public boolean isAssertionReuseAllowed() {
-        return getConfig().getJwtAuthorizationGrantAssertionReuseAllowed();
+        return getConfig().isJWTAuthorizationGrantAssertionReuseAllowed();
+    }
+
+    @Override
+    public List<String> getAllowedAudienceForJWTGrant() {
+        return new JWTAuthorizationGrantIdentityProvider(session, getConfig()).getAllowedAudienceForJWTGrant();
+    }
+
+    @Override
+    public int getMaxAllowedExpiration() {
+        return getConfig().getJWTAuthorizationGrantMaxAllowedAssertionExpiration();
+    }
+
+    @Override
+    public String getAssertionSignatureAlg() {
+        return getConfig().getJWTAuthorizationGrantAssertionSignatureAlg();
     }
 }

@@ -19,8 +19,6 @@ package org.keycloak.protocol.oidc.grants;
 
 import jakarta.ws.rs.core.Response;
 
-import org.jboss.logging.Logger;
-
 import org.keycloak.OAuthErrorException;
 import org.keycloak.authentication.AuthenticationProcessor;
 import org.keycloak.common.constants.ServiceAccountConstants;
@@ -44,7 +42,9 @@ import org.keycloak.services.managers.UserSessionManager;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 
-import static org.keycloak.OAuth2Constants.AUTHORIZATION_DETAILS_PARAM;
+import org.jboss.logging.Logger;
+
+import static org.keycloak.OAuth2Constants.AUTHORIZATION_DETAILS;
 
 /**
  * OAuth 2.0 Client Credentials Grant
@@ -160,9 +160,9 @@ public class ClientCredentialsGrantType extends OAuth2GrantTypeBase {
      * until RAR is fully implemented.
      */
     private void setAuthorizationDetailsNoteIfIncluded(AuthenticationSessionModel authSession) {
-        String authorizationDetails = formParams.getFirst(AUTHORIZATION_DETAILS_PARAM);
+        String authorizationDetails = formParams.getFirst(AUTHORIZATION_DETAILS);
         if (authorizationDetails != null) {
-            authSession.setClientNote(AUTHORIZATION_DETAILS_PARAM, authorizationDetails);
+            authSession.setClientNote(AUTHORIZATION_DETAILS, authorizationDetails);
         }
     }
 }
