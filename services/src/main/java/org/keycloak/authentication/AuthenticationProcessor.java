@@ -941,6 +941,7 @@ public class AuthenticationProcessor {
             logger.error("Unknown flow to execute with");
             throw new AuthenticationFlowException(AuthenticationFlowError.INTERNAL_ERROR);
         }
+        System.out.println("flow id: ".concat(flow.getProviderId()));
         if (flow.getProviderId() == null || flow.getProviderId().equals(AuthenticationFlow.BASIC_FLOW)) {
             return new DefaultAuthenticationFlow(this, flow);
         } else if (flow.getProviderId().equals(AuthenticationFlow.FORM_FLOW)) {
@@ -1051,6 +1052,7 @@ public class AuthenticationProcessor {
 
     public Response authenticationAction(String execution) {
         logger.debug("authenticationAction");
+        System.out.println("execution: ".concat(execution));
         checkClientSession(true);
         String current = authenticationSession.getAuthNote(CURRENT_AUTHENTICATION_EXECUTION);
         if (execution == null || !execution.equals(current)) {
@@ -1076,13 +1078,16 @@ public class AuthenticationProcessor {
 
         AuthenticationFlow authenticationFlow = createFlowExecution(this.flowId, model);
         Response challenge = authenticationFlow.processAction(execution);
-        if (challenge != null) return challenge;
+        if (challenge != null){
+            return challenge;
+        }
         if (authenticationSession.getAuthenticatedUser() == null) {
             throw new AuthenticationFlowException(AuthenticationFlowError.UNKNOWN_USER);
         }
         if (!authenticationFlow.isSuccessful()) {
             throw new AuthenticationFlowException(authenticationFlow.getFlowExceptions());
-        }
+        }        
+        System.out.println("Made it to end of authentication action");
         return authenticationComplete();
     }
 
@@ -1231,7 +1236,8 @@ public class AuthenticationProcessor {
         if (authenticatedUser.getServiceAccountClientLink() != null) throw new AuthenticationFlowException(AuthenticationFlowError.UNKNOWN_USER);
     }
 
-    protected Response authenticationComplete() {
+    protected Response authenticationComplete() {        
+        System.out.println("authentication complete method.");
         new AcrStore(session, authenticationSession).setAuthFlowLevelAuthenticatedToCurrentRequest();
 
         // attachSession(); // Session will be attached after requiredActions + consents are finished.
@@ -1239,6 +1245,7 @@ public class AuthenticationProcessor {
 
         String nextRequiredAction = nextRequiredAction();
         if (nextRequiredAction != null) {
+            System.out.println("next action: ".concat(nextRequiredAction));
             return AuthenticationManager.redirectToRequiredActions(session, realm, authenticationSession, uriInfo, nextRequiredAction);
         } else {
             event.detail(Details.CODE_ID, authenticationSession.getParentSession().getId());  // todo This should be set elsewhere.  find out why tests fail.  Don't know where this is supposed to be set
