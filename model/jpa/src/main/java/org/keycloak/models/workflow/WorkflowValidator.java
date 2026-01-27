@@ -3,12 +3,15 @@ package org.keycloak.models.workflow;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.keycloak.common.util.DurationConverter;
 import org.keycloak.common.util.MultivaluedHashMap;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.workflow.conditions.expression.BooleanConditionParser;
 import org.keycloak.models.workflow.conditions.expression.ConditionNameCollector;
+import org.keycloak.models.workflow.conditions.expression.ConditionTypeCollector;
 import org.keycloak.models.workflow.conditions.expression.EvaluatorUtils;
 import org.keycloak.representations.workflows.WorkflowRepresentation;
 import org.keycloak.representations.workflows.WorkflowStepRepresentation;
@@ -18,8 +21,10 @@ import static java.util.Optional.ofNullable;
 
 public class WorkflowValidator {
 
-    public static void validateWorkflow(KeycloakSession session, WorkflowRepresentation rep) throws WorkflowInvalidStateException {
-        validateField(rep, "name", rep.getName());
+    public static void validateWorkflow(KeycloakSession session, WorkflowProvider provider, WorkflowRepresentation rep) throws WorkflowInvalidStateException {
+
+        validateWorkflowName(provider, rep);
+
         //TODO: validate event and resource conditions (`on` and `if` properties) using the providers with a custom evaluator that calls validate on
         // each condition provider used in the expression once we have the event condition providers implemented
         if (StringUtil.isNotBlank(rep.getOn())) {
@@ -65,6 +70,33 @@ public class WorkflowValidator {
             if (!hasScheduledStep) {
                 throw new WorkflowInvalidStateException("No scheduled step found if restarting at position " + position);
             }
+        }
+
+        if (rep.getSupports() != null) {
+            // supported type is set, we are validating an update of the workflow
+            try {
+                ResourceType type = ResourceType.valueOf(rep.getSupports());
+                validateWorkflowConditionType(session, rep.getConditions(), type);
+            } catch (IllegalArgumentException e) {
+                throw new WorkflowInvalidStateException("Invalid workflow type: " + rep.getSupports());
+            }
+        }
+    }
+
+    public static void validateWorkflowConditionType(KeycloakSession session, String condition, ResourceType workflowType) throws WorkflowInvalidStateException {
+        if (StringUtil.isBlank(condition)) {
+            return;
+        }
+
+        BooleanConditionParser.EvaluatorContext context = EvaluatorUtils.createEvaluatorContext(condition);
+        ConditionTypeCollector typeCollector = new ConditionTypeCollector(session);
+        // ConditionTypeCollector.visit(ctx) throws a WorkflowInvalidStateException if a provider is not found
+        typeCollector.visit(context);
+
+        Set<ResourceType> supporteds = typeCollector.getConditionTypes();
+        if (!supporteds.contains(workflowType)) {
+            String formatted = supporteds.stream().map(Enum::name).collect(Collectors.joining(", "));
+            throw new WorkflowInvalidStateException("Provided condition types (%s) are not compatible with workflow type (%s).".formatted(formatted, workflowType));
         }
     }
 
@@ -119,9 +151,15 @@ public class WorkflowValidator {
         }
     }
 
-    private static void validateField(Object obj, String fieldName, String value) throws WorkflowInvalidStateException {
-        if (StringUtil.isBlank(value)) {
-            throw new WorkflowInvalidStateException("%s field '%s' cannot be null or empty.".formatted(obj.getClass().getCanonicalName(), fieldName));
+    private static void validateWorkflowName(WorkflowProvider provider, WorkflowRepresentation representation) throws WorkflowInvalidStateException {
+        String name = representation.getName();
+        if (StringUtil.isBlank(name)) {
+            throw new WorkflowInvalidStateException("Workflow name cannot be null or empty.");
+        }
+
+        // validate name uniqueness
+        if (provider.getWorkflows().anyMatch(wf -> wf.getName().equals(name) && !wf.getId().equals(representation.getId()))) {
+            throw new WorkflowInvalidStateException("Workflow name must be unique. A workflow with name '" + name + "' already exists.");
         }
     }
 }

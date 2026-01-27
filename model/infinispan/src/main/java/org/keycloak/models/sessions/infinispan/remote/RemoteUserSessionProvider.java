@@ -168,7 +168,7 @@ public class RemoteUserSessionProvider implements UserSessionProvider {
 
     @Override
     public Map<String, Long> getActiveClientSessionStats(RealmModel realm, boolean offline) {
-        var query = ClientSessionQueries.activeClientCount(getClientSessionTransaction(offline).getCache());
+        var query = ClientSessionQueries.activeClientCount(getClientSessionTransaction(offline).getCache(), realm.getId());
         return QueryHelper.streamAll(query, batchSize, QueryHelper.PROJECTION_TO_STRING_LONG_ENTRY)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
@@ -439,10 +439,10 @@ public class RemoteUserSessionProvider implements UserSessionProvider {
 
     private Stream<UserSessionModel> streamUserSessionByClientId(RealmModel realm, String clientId, boolean offline, Integer offset, Integer maxResults) {
         var userSessionIdQuery = ClientSessionQueries.fetchUserSessionIdForClientId(getClientSessionTransaction(offline).getCache(), realm.getId(), clientId);
-        if (offset != null) {
+        if (offset != null && offset > -1) {
             userSessionIdQuery.startOffset(offset);
         }
-        userSessionIdQuery.maxResults(maxResults == null ? Integer.MAX_VALUE : maxResults);
+        userSessionIdQuery.maxResults(maxResults == null || maxResults == -1 ? Integer.MAX_VALUE : maxResults);
         var userSessionTx = getUserSessionTransaction(offline);
         return Flowable.fromIterable(QueryHelper.toCollection(userSessionIdQuery, QueryHelper.SINGLE_PROJECTION_TO_STRING))
                 .flatMapMaybe(userSessionTx::maybeGet, false, MAX_CONCURRENT_REQUESTS)
