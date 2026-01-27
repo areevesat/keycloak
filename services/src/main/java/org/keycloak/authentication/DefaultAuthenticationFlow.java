@@ -86,35 +86,35 @@ public class DefaultAuthenticationFlow implements AuthenticationFlow {
 
     @Override
     public Response processAction(String actionExecution) {
-        System.out.println("processing action ".concat(actionExecution));
+        logger.info("processing action ".concat(actionExecution));
         logger.debugv("processAction: ".concat(actionExecution));
 
         if (actionExecution == null || actionExecution.isEmpty()) {
             throw new AuthenticationFlowException("action is not in current execution", AuthenticationFlowError.INTERNAL_ERROR);
         }
         AuthenticationExecutionModel model = processor.getRealm().getAuthenticationExecutionById(actionExecution);
-        System.out.println("Authentication Execution Model properties:");
+        logger.info("Authentication Execution Model properties:");
 
         String id = model.getId();
         String authConfig = model.getAuthenticatorConfig();
         String authString = model.getAuthenticator();
         String flowId = model.getFlowId();
         String parentFlow = model.getParentFlow();
-        System.out.println("id: ".concat(id == null ? "null" : id));
-        System.out.println("authenticator config: ".concat(authConfig == null ? "null" : authConfig));
-        System.out.println("authenticator: ".concat(authString == null ? "null" : authString));
-        System.out.println("flowId: ".concat(flowId == null ? "null" : flowId));
-        //System.out.println("authenticatorFlow: ".concat(model.isAuthenticatorFlow().toString()));
-        //System.out.println("priority: ".concat(model.getPriority().toString()));
-        System.out.println("parentFlow: ".concat(parentFlow == null ? "null" : parentFlow));
-        System.out.println("Requirement type: ".concat(model.getRequirement().getClass().getName()));
+        logger.info("id: ".concat(id == null ? "null" : id));
+        logger.info("authenticator config: ".concat(authConfig == null ? "null" : authConfig));
+        logger.info("authenticator: ".concat(authString == null ? "null" : authString));
+        logger.info("flowId: ".concat(flowId == null ? "null" : flowId));
+        //logger.info("authenticatorFlow: ".concat(model.isAuthenticatorFlow().toString()));
+        //logger.info("priority: ".concat(model.getPriority().toString()));
+        logger.info("parentFlow: ".concat(parentFlow == null ? "null" : parentFlow));
+        logger.info("Requirement type: ".concat(model.getRequirement().getClass().getName()));
         
         if (model == null) {
             throw new AuthenticationFlowException("Execution not found", AuthenticationFlowError.INTERNAL_ERROR);
         }
 
         if (HttpMethod.POST.equals(processor.getRequest().getHttpMethod())) {
-            System.out.println("Handling post action");
+            logger.info("Handling post action");
             MultivaluedMap<String, String> inputData = processor.getRequest().getDecodedFormParameters();
             String authExecId = inputData.getFirst(Constants.AUTHENTICATION_EXECUTION);
 
@@ -128,7 +128,7 @@ public class DefaultAuthenticationFlow implements AuthenticationFlow {
 
             // check if the user has switched to a new authentication execution, and if so switch to it.
             if (authExecId != null && !authExecId.isEmpty()) {
-                System.out.println("switching auth execution");
+                logger.info("switching auth execution");
 
                 processor.getAuthenticationSession().removeAuthNote(AuthenticationProcessor.AUTHENTICATION_SELECTOR_SCREEN_DISPLAYED);
                 List<AuthenticationSelectionOption> selectionOptions = createAuthenticationSelectionList(model);
@@ -145,33 +145,33 @@ public class DefaultAuthenticationFlow implements AuthenticationFlow {
 
                 Response response = processSingleFlowExecutionModel(model, false);
                 if (response == null) {
-                    System.out.println("response is null");
+                    logger.info("response is null");
                     return continueAuthenticationAfterSuccessfulAction(model);
                 } else
-                    System.out.println("response is not null");
+                    logger.info("response is not null");
                     return response;
             }
         }
 
         //handle case where execution is a flow - This can happen during user registration for example
         if (model.isAuthenticatorFlow()) {
-            System.out.println("execution is flow");
+            logger.info("execution is flow");
             logger.debug("execution is flow");
             AuthenticationFlow authenticationFlow = processor.createFlowExecution(model.getFlowId(), model);
             Response flowChallenge = authenticationFlow.processAction(actionExecution);
             if (flowChallenge == null) {
-                System.out.println("flowChallenge is null");
+                logger.info("flowChallenge is null");
                 checkAndValidateParentFlow(model);
                 return processFlow();
             } else {
-                System.out.println("flowChallenge is not null");
+                logger.info("flowChallenge is not null");
                 setExecutionStatus(model, AuthenticationSessionModel.ExecutionStatus.CHALLENGED);
                 return flowChallenge;
             }
         }
 
         //handle normal execution case
-        System.out.println("Handling normal execution case");
+        logger.info("Handling normal execution case");
 
         AuthenticatorFactory factory = getAuthenticatorFactory(model);
         Authenticator authenticator = createAuthenticator(factory);
@@ -179,16 +179,16 @@ public class DefaultAuthenticationFlow implements AuthenticationFlow {
         UserModel authUser = processor.getAuthenticationSession().getAuthenticatedUser();
         if (authenticator instanceof UsernamePasswordForm)
         {
-            System.out.println("Checking organizations");
-            System.out.println("user first name".concat(authUser.getFirstName()));
+            logger.info("Checking organizations");
+            logger.info("user first name".concat(authUser.getFirstName()));
             //Make sure that the user's org does not require SSO.
             List<OrganizationModel> organizations = session.getProvider(OrganizationProvider.class)
                 .getByMember(authUser).toList();
         
             boolean requireSso = false;
-            System.out.println("organization count ".concat(Integer.toString(organizations.size())));
+            logger.info("organization count ".concat(Integer.toString(organizations.size())));
             for(OrganizationModel organization : organizations){
-                System.out.println("checking org ".concat(organization.getName()));
+                logger.info("checking org ".concat(organization.getName()));
                 requireSso = requireSso || organization.getRequireSso();
             }
             if (requireSso)
@@ -204,15 +204,15 @@ public class DefaultAuthenticationFlow implements AuthenticationFlow {
         }
 
         logger.debugv("action: {0}", model.getAuthenticator());
-        System.out.println("authenticator is type ".concat(authenticator.getClass().getName()));
+        logger.info("authenticator is type ".concat(authenticator.getClass().getName()));
         authenticator.action(result);
         Response response = processResult(result, true);
         if (response == null) {
-            System.out.println("response is null");
+            logger.info("response is null");
             return continueAuthenticationAfterSuccessfulAction(model);
         } 
         else{
-            System.out.println("response is not null");
+            logger.info("response is not null");
             return response;
         } 
     }
@@ -427,7 +427,7 @@ public class DefaultAuthenticationFlow implements AuthenticationFlow {
 
     private AuthenticatorFactory getAuthenticatorFactory(AuthenticationExecutionModel model) {
         Object factoryObj = processor.getSession().getKeycloakSessionFactory();
-        System.out.println("factory type is ".concat(factoryObj.getClass().toString()));
+        logger.info("factory type is ".concat(factoryObj.getClass().toString()));
         AuthenticatorFactory factory = (AuthenticatorFactory) processor.getSession().getKeycloakSessionFactory().getProviderFactory(Authenticator.class, model.getAuthenticator());
         if (factory == null) {
             throw new RuntimeException("Unable to find factory for AuthenticatorFactory: " + model.getAuthenticator() + " did you forget to declare it in a META-INF/services file?");

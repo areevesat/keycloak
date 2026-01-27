@@ -224,10 +224,10 @@ public class LoginActionsService {
         CacheControlUtil.noBackButtonCacheControlHeader(session);
         this.request = session.getContext().getHttpRequest();
         this.headers = session.getContext().getRequestHeaders();
-        System.out.println("--------------------------------------------------------------------");
+        logger.info("--------------------------------------------------------------------");
         String time = new Date().toString();
-        System.out.println(time);
-        System.out.println("Constructor for login actions service");
+        logger.info(time);
+        logger.info("Constructor for login actions service");
     }
 
     private boolean checkSsl() {
@@ -360,7 +360,7 @@ public class LoginActionsService {
                                  @QueryParam(Constants.TAB_ID) String tabId,
                                  @QueryParam(Constants.CLIENT_DATA) String clientData) {
 
-        System.out.println("In authenticate method.");
+        logger.info("In authenticate method.");
         event.event(EventType.LOGIN);
 
         SessionCodeChecks checks = checksForCode(authSessionId, code, execution, clientId, tabId, clientData, AUTHENTICATE_PATH);
@@ -381,14 +381,14 @@ public class LoginActionsService {
     }
 
     protected Response processAuthentication(boolean action, String execution, AuthenticationSessionModel authSession, String errorMessage) {
-        System.out.println("Processing authentication.");
+        logger.info("Processing authentication.");
         return processFlow(action, execution, authSession, AUTHENTICATE_PATH, AuthenticationFlowResolver.resolveBrowserFlow(authSession), errorMessage, new AuthenticationProcessor());
     }
 
     protected Response processFlow(boolean action, String execution, AuthenticationSessionModel authSession, String flowPath, AuthenticationFlowModel flow, String errorMessage, AuthenticationProcessor processor) {
-        System.out.println("processing flow");
-        System.out.println(execution);
-        System.out.println(flowPath);
+        logger.info("processing flow");
+        logger.info(execution);
+        logger.info(flowPath);
         processor.setAuthenticationSession(authSession)
                 .setFlowPath(flowPath)
                 .setBrowserFlow(true)
@@ -413,18 +413,18 @@ public class LoginActionsService {
         Response response;
         try {
             if (action) {
-                System.out.println("authenticate action");
+                logger.info("authenticate action");
                 response = processor.authenticationAction(execution);
             } else {
-                System.out.println("authenticate without action");
+                logger.info("authenticate without action");
                 response = processor.authenticate();
             }
         } catch (WebApplicationException e) {
-            System.out.println("Caught web application exception");
+            logger.info("Caught web application exception");
             response = e.getResponse();
             authSession = processor.getAuthenticationSession();
         } catch (Exception e) {
-            System.out.println("Caught another application exception");
+            logger.info("Caught another application exception");
             response = processor.handleBrowserException(e);
             authSession = processor.getAuthenticationSession(); // Could be changed (eg. Forked flow)
         }
@@ -446,7 +446,7 @@ public class LoginActionsService {
                                      @QueryParam(Constants.CLIENT_ID) String clientId,
                                      @QueryParam(Constants.TAB_ID) String tabId,
                                      @QueryParam(Constants.CLIENT_DATA) String clientData) {
-        System.out.println("authenticate form");
+        logger.info("authenticate form");
         return authenticate(authSessionId, code, execution, clientId, tabId, clientData);
     }
 
@@ -756,7 +756,7 @@ public class LoginActionsService {
     }
 
     private Response processFlowFromPath(String flowPath, AuthenticationSessionModel authSession, String errorMessage) {
-        System.out.println("Processing flow from path");
+        logger.info("Processing flow from path");
         if (AUTHENTICATE_PATH.equals(flowPath)) {
             return processAuthentication(false, null, authSession, errorMessage);
         } else if (REGISTRATION_PATH.equals(flowPath)) {

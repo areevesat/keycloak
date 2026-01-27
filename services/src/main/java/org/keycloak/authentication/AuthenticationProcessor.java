@@ -941,7 +941,7 @@ public class AuthenticationProcessor {
             logger.error("Unknown flow to execute with");
             throw new AuthenticationFlowException(AuthenticationFlowError.INTERNAL_ERROR);
         }
-        System.out.println("flow id: ".concat(flow.getProviderId()));
+        logger.info("flow id: ".concat(flow.getProviderId()));
         if (flow.getProviderId() == null || flow.getProviderId().equals(AuthenticationFlow.BASIC_FLOW)) {
             return new DefaultAuthenticationFlow(this, flow);
         } else if (flow.getProviderId().equals(AuthenticationFlow.FORM_FLOW)) {
@@ -1052,7 +1052,7 @@ public class AuthenticationProcessor {
 
     public Response authenticationAction(String execution) {
         logger.debug("authenticationAction");
-        System.out.println("execution: ".concat(execution));
+        logger.info("execution: ".concat(execution));
         checkClientSession(true);
         String current = authenticationSession.getAuthNote(CURRENT_AUTHENTICATION_EXECUTION);
         if (execution == null || !execution.equals(current)) {
@@ -1087,7 +1087,7 @@ public class AuthenticationProcessor {
         if (!authenticationFlow.isSuccessful()) {
             throw new AuthenticationFlowException(authenticationFlow.getFlowExceptions());
         }        
-        System.out.println("Made it to end of authentication action");
+        logger.info("Made it to end of authentication action");
         return authenticationComplete();
     }
 
@@ -1237,7 +1237,7 @@ public class AuthenticationProcessor {
     }
 
     protected Response authenticationComplete() {        
-        System.out.println("authentication complete method.");
+        logger.info("authentication complete method.");
         new AcrStore(session, authenticationSession).setAuthFlowLevelAuthenticatedToCurrentRequest();
 
         // attachSession(); // Session will be attached after requiredActions + consents are finished.
@@ -1245,7 +1245,7 @@ public class AuthenticationProcessor {
 
         String nextRequiredAction = nextRequiredAction();
         if (nextRequiredAction != null) {
-            System.out.println("next action: ".concat(nextRequiredAction));
+            logger.info("next action: ".concat(nextRequiredAction));
             return AuthenticationManager.redirectToRequiredActions(session, realm, authenticationSession, uriInfo, nextRequiredAction);
         } else {
             event.detail(Details.CODE_ID, authenticationSession.getParentSession().getId());  // todo This should be set elsewhere.  find out why tests fail.  Don't know where this is supposed to be set
